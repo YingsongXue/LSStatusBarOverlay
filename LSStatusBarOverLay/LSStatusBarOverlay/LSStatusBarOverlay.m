@@ -97,16 +97,11 @@
     {
         self.isDisplaying = NO;
     }
-    
-//    if (self.delegate && [self.delegate respondsToSelector:@selector(statusBarDidHide)])
-//    {
-//        [self.delegate statusBarDidHide];
-//    }
 }
 
 - (void)hideDisplay;
 {
-    self.isDisplaying = NO;
+    [self dismissAnimated:YES];
 }
 
 - (BOOL)isVisible
@@ -123,12 +118,25 @@
     UIWindow *window = [[UIApplication sharedApplication] mainApplicationWindow];
     if (isVCBasedStatusBar)
     {
+//        if (isDisplaying)
+//        {
+//            [window bringSubviewToFront:self.overlayWindow];
+//        }
+//        
+//        self.overlayWindow.hidden = !isDisplaying;
         if (isDisplaying)
         {
-            [window bringSubviewToFront:self.overlayWindow];
+            [window bringSubviewToFront:self];
         }
         
-        self.overlayWindow.hidden = !isDisplaying;
+        [self setBarHidden:isDisplaying animation:NO];
+        
+        [UIView animateWithDuration:0.4 animations:^{
+            self.hidden = !isDisplaying;
+            
+        } completion:^(BOOL finished) {
+            self.hidden = !isDisplaying;
+        }];
     }
     else
     {
@@ -146,6 +154,13 @@
             self.hidden = !isDisplaying;
         }];
     }
+    
+    if (!isDisplaying) {
+        if (self.delegate && [self.delegate respondsToSelector:@selector(LSStatusBarDidHide:)])
+        {
+            [self.delegate LSStatusBarDidHide:self];
+        }
+    }
 }
 
 - (void)setBarHidden:(BOOL)isHidden animation:(BOOL)animation
@@ -154,8 +169,6 @@
     
     if (isVCBasedStatusBar)
     {
-        NSLog(@"Please set [View controller-based status bar appearance] = NO in info.plist");
-        
         UIWindow *window = [[UIApplication sharedApplication] mainApplicationWindow];
         UIViewController *topViewController = window.rootViewController;
         if ([window.rootViewController isKindOfClass:[UINavigationController class]])
@@ -206,6 +219,10 @@
 - (void)tapOnMessage:(UITapGestureRecognizer *)tapGes
 {
     [self hideDisplay];
+    
+    if (self.delegate && [self.delegate respondsToSelector:@selector(LSStatusBar:didRecognizeGesture:)]) {
+        [self.delegate LSStatusBar:self didRecognizeGesture:tapGes];
+    }
 }
 
 #pragma mark Views
@@ -221,32 +238,53 @@
     
     if (isVCBasedStatusBar)
     {
-        UIViewController *viewController = [[UIViewController alloc] init];
-        viewController.view.backgroundColor = [UIColor clearColor];
-        LSWindow *overlayWindow = [[LSWindow alloc] init];
-        overlayWindow.rootViewController = viewController;
-        overlayWindow.autoresizingMask = UIViewAutoresizingNone;
-        overlayWindow.windowLevel = UIWindowLevelStatusBar + 1;
-        overlayWindow.translatesAutoresizingMaskIntoConstraints = NO;
-        overlayWindow.hidden = NO;
-        [window addSubview:overlayWindow];
-        self.overlayWindow = overlayWindow;
+//        NSLog(@"Please set [View controller-based status bar appearance] = NO in info.plist");
         
-        NSDictionary *viewDict = NSDictionaryOfVariableBindings(overlayWindow);
-        [window addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[overlayWindow]-0-|" options:0 metrics:nil views:viewDict]];
-        [window addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[overlayWindow]" options:0 metrics:nil views:viewDict]];
-        NSLayoutConstraint *statusBarOverlayHeightCons = [NSLayoutConstraint constraintWithItem:overlayWindow attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:0];
+//        UIViewController *viewController = [[UIViewController alloc] init];
+//        viewController.view.backgroundColor = [UIColor clearColor];
+//        LSWindow *overlayWindow = [[LSWindow alloc] init];
+//        overlayWindow.rootViewController = viewController;
+//        overlayWindow.windowLevel = UIWindowLevelStatusBar + 1;
+//        overlayWindow.translatesAutoresizingMaskIntoConstraints = NO;
+//        overlayWindow.hidden = NO;
+//        [window addSubview:overlayWindow];
+//        self.overlayWindow = overlayWindow;
+//        [window setNeedsLayout];
+//        [window updateConstraintsIfNeeded];
+//        
+//        NSDictionary *viewDict = NSDictionaryOfVariableBindings(overlayWindow);
+//        [window addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[overlayWindow]-0-|" options:0 metrics:nil views:viewDict]];
+//        [window addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[overlayWindow]" options:0 metrics:nil views:viewDict]];
+//        NSLayoutConstraint *statusBarOverlayHeightCons = [NSLayoutConstraint constraintWithItem:overlayWindow attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:0];
+//        statusBarOverlayHeightCons.constant = 600;//[UIApplication sharedApplication].statusBarFrame.size.height;
+//        self.statusBarOverlayHeightCons = statusBarOverlayHeightCons;
+//        [window addConstraint:statusBarOverlayHeightCons];
+//        //set self;
+//        [overlayWindow addSubview:self];
+//        UIView *view = self;
+//        NSDictionary *myViewDict = NSDictionaryOfVariableBindings(view);
+//        [overlayWindow addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[view]-0-|" options:0 metrics:nil views:myViewDict]];
+//        [overlayWindow addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[view]-0-|" options:0 metrics:nil views:myViewDict]];
+//        [window setNeedsLayout];
+//        [window updateConstraintsIfNeeded];
+        
+        [window addSubview:self];
+        
+        self.layer.zPosition = FLT_MAX-1; //even unable to touch, make it top of every other view
+        
+        UIView *view = self;
+        NSDictionary *viewDict = NSDictionaryOfVariableBindings(view);
+        [window addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[view]-0-|" options:0 metrics:nil views:viewDict]];
+        [window addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:[view]" options:0 metrics:nil views:viewDict]];
+        
+        NSLayoutConstraint *statusBarOverlayHeight = [NSLayoutConstraint constraintWithItem:view attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:window attribute:NSLayoutAttributeTop multiplier:1.0 constant:0];
+        statusBarOverlayHeight.constant = [UIApplication sharedApplication].statusBarFrame.size.height;
+        [window addConstraint:statusBarOverlayHeight];
+        
+        NSLayoutConstraint *statusBarOverlayHeightCons = [NSLayoutConstraint constraintWithItem:view attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:0];
         statusBarOverlayHeightCons.constant = [UIApplication sharedApplication].statusBarFrame.size.height;
         self.statusBarOverlayHeightCons = statusBarOverlayHeightCons;
         [window addConstraint:statusBarOverlayHeightCons];
-        //set self;
-        [overlayWindow addSubview:self];
-        UIView *view = self;
-        NSDictionary *myViewDict = NSDictionaryOfVariableBindings(view);
-        [overlayWindow addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[view]-0-|" options:0 metrics:nil views:myViewDict]];
-        [overlayWindow addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[view]-0-|" options:0 metrics:nil views:myViewDict]];
-        [window setNeedsLayout];
-        [window updateConstraintsIfNeeded];
     }
     else
     {
@@ -367,11 +405,11 @@
 //- (void)setFrame:(CGRect)frame
 //{
 //    CGFloat height = CGRectGetHeight([[UIApplication sharedApplication] statusBarFrame]);
-//    [super setFrame:CGRectMake(0, 0, CGRectGetWidth(frame), height)];
+//    [super setFrame:CGRectMake(0, 0, 1000, height)];
 ////    [super setFrame:frame];
 ////    NSLog(@"%@",[self constraints]);
 //}
-//
+
 - (void)layoutSubviews{
     [super layoutSubviews];
 }

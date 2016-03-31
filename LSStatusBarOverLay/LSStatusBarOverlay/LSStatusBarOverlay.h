@@ -11,8 +11,11 @@
  */
 #import <UIKit/UIKit.h>
 
+@protocol LSStatusBarNotificationDelegate;
+
 @interface LSStatusBarOverlay : UIView
 
+@property (nonatomic, weak) id<LSStatusBarNotificationDelegate> delegate;
 @property (nonatomic, strong) UIView *backgroundView;
 @property (nonatomic, strong) UILabel *messageLabel;
 @property (nonatomic, strong) UIActivityIndicatorView *activityIndicatorView;
@@ -32,11 +35,11 @@
 
 
 #pragma mark StatusBarDelegate
-@protocol JDStatusBarNotificationDelegate <NSObject>
+@protocol LSStatusBarNotificationDelegate <NSObject>
 
 @optional
-- (void)statusBarDidRecognizeGesture:(UIGestureRecognizer *)gestureRecognizer;
+- (void)LSStatusBar:(LSStatusBarOverlay *)statusBar didRecognizeGesture:(UIGestureRecognizer *)gestureRecognizer;
 
-- (void)statusBarDidHide;
+- (void)LSStatusBarDidHide:(LSStatusBarOverlay *)statusBar;
 
 @end
